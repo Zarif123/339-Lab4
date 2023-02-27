@@ -7,6 +7,16 @@ import simpledb.execution.Predicate;
  */
 public class IntHistogram {
 
+    private int buckets;
+    private int min;
+    private int max;
+    //array of length buckets for the histogram
+    private int[] graph; 
+    //counts number of tuples
+    private int ntups;
+    //range per bucket
+    private double rangeperbucket;
+    
     /**
      * Create a new IntHistogram.
      * <p>
@@ -25,6 +35,21 @@ public class IntHistogram {
      */
     public IntHistogram(int buckets, int min, int max) {
         // TODO: some code goes here
+        this.buckets = buckets;
+        this.min = min;
+        this.max = max;
+        this.graph = new int[buckets];
+        this.ntups = 0;
+        this.rangeperbucket = (double) (max + 1 - min) / buckets;
+    }
+    
+    //helper I made
+    private int getBucket(int v) {
+        // calculate the correct slot
+        // min + rangeperbucket * bucketNo = v
+        // bucketNo = (v - min) / rangeperbucket
+        // but rounded down
+        return (int) (v - min) / rangeperbucket;
     }
 
     /**
@@ -34,6 +59,9 @@ public class IntHistogram {
      */
     public void addValue(int v) {
         // TODO: some code goes here
+        int bucketNo = this.getBucket();
+        graph[bucketNo]++;
+        ntups++;
     }
 
     /**
@@ -47,9 +75,49 @@ public class IntHistogram {
      * @return Predicted selectivity of this particular operator and value
      */
     public double estimateSelectivity(Predicate.Op op, int v) {
-
         // TODO: some code goes here
-        return -1.0;
+        //might be some double casting issues to look out for
+        double select = 0.0;
+        String oper = op.toString();
+        int bucketNo = this.getBucket(v);
+        //I think LIKE never runs
+        if (oper == "LIKE") {
+            return -1.0;
+        }
+        //anything involving equality
+        if (oper == "=" || oper == "<>" || oper == "<=" || oper == ">=") {
+            select += (graph[bucketNo] / this.rangeperbucket) / this.ntups;
+            if (oper == "=") {
+                return select;
+            }
+            if (oper == "<>") {
+                return 1.0 - select;
+            }
+        }
+        //now the range operations
+        double bucketf = (double) graph[bucketNo] / ntups;
+        if (oper == "<" || oper == "<=") {
+            //all less than operations
+            //get value for singular bucket
+            double left = min + rangeperbucket * bucketNo;
+            double part = (v - left) / rangeperbucket;
+            select += part * bucketf;
+            //get the rest 
+            for (int i = bucketNo - 1; i > -1; i--) {
+                select += (double) graph[i] / ntups;
+            }
+        } else {
+            //all greater than operations
+            //get value for singular bucket
+            double right = min + rangeperbucket * (bucketNo + 1);
+            double part = (right - v) / rangeperbucket;
+            select += part * bucketf;
+            //get the rest
+            for (int i = bucketNo + 1; i < buckets; i++) {
+                select += (double) graph[i] / ntups;
+            }
+        }
+        return select;
     }
 
     /**
@@ -61,7 +129,13 @@ public class IntHistogram {
      */
     public double avgSelectivity() {
         // TODO: some code goes here
-        return 1.0;
+        //using the formula of (average(h) / w) / ntups
+        double avgHeight = 0.0;
+        for (int i = 0; i < buckets; i++) {
+            avgHeight += graph[i];
+        }
+        avgHeight /= buckets;
+        return (avgHeight / this.rangeperbucket) / this.ntups;
     }
 
     /**
@@ -69,6 +143,11 @@ public class IntHistogram {
      */
     public String toString() {
         // TODO: some code goes here
-        return null;
+        String s = "";
+        for (int i = 0; i < buckets; i++) {
+            s += "Bucket # " + i + ": Height " + graph[i];
+            s += " From " + (min + rangeperbucket * i) + " To " + (min + rangeperbucket * (i + 1)) + "\n";
+        }
+        return s;
     }
 }
