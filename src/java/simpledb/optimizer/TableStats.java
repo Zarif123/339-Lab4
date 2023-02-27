@@ -65,6 +65,12 @@ public class TableStats {
      * histograms.
      */
     static final int NUM_HIST_BINS = 100;
+    
+    private int tableid;
+    private int ioCostPerPage;
+    //other fields
+    private int tcard;
+    private TupleDesc td;
 
     /**
      * Create a new TableStats object, that keeps track of statistics on each
@@ -83,6 +89,12 @@ public class TableStats {
         // necessarily have to (for example) do everything
         // in a single scan of the table.
         // TODO: some code goes here
+        this.tableid = tableid;
+        this.ioCostPerPage = ioCostPerPage;
+        DbFile dbf = Database.getCatalog().getDatabaseFile(tableid);
+        this.td = dbf.getTupleDesc();
+        //also td.getSize()
+        this.tcard = dbf.numPages();
     }
 
     /**
@@ -99,7 +111,7 @@ public class TableStats {
      */
     public double estimateScanCost() {
         // TODO: some code goes here
-        return 0;
+        return (double) tcard * ioCostPerPage;
     }
 
     /**
@@ -112,7 +124,7 @@ public class TableStats {
      */
     public int estimateTableCardinality(double selectivityFactor) {
         // TODO: some code goes here
-        return 0;
+        return (int) selectivityFactor * totalTuples();
     }
 
     /**
@@ -149,7 +161,9 @@ public class TableStats {
      */
     public int totalTuples() {
         // TODO: some code goes here
-        return 0;
+        //not sure how else to do it
+        int bitsPerTupleIncludingHeader = td.getSize() * 8 + 1;
+        return (tcard * BufferPool.getPageSize() * 8) / bitsPerTupleIncludingHeader;
     }
 
 }
