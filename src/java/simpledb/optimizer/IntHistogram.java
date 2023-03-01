@@ -49,7 +49,7 @@ public class IntHistogram {
         // min + rangeperbucket * bucketNo = v
         // bucketNo = (v - min) / rangeperbucket
         // but rounded down
-        return (int) (v - min) / rangeperbucket;
+        return (int) ((v - min) / rangeperbucket);
     }
 
     /**
@@ -59,7 +59,7 @@ public class IntHistogram {
      */
     public void addValue(int v) {
         // TODO: some code goes here
-        int bucketNo = this.getBucket();
+        int bucketNo = this.getBucket(v);
         graph[bucketNo]++;
         ntups++;
     }
@@ -80,6 +80,9 @@ public class IntHistogram {
         double select = 0.0;
         String oper = op.toString();
         int bucketNo = this.getBucket(v);
+        if (bucketNo < 0 || bucketNo >= this.buckets) {
+            bucketNo = 0;
+        }
         //I think LIKE never runs
         if (oper == "LIKE") {
             return -1.0;

@@ -94,7 +94,7 @@ public class TableStats {
         DbFile dbf = Database.getCatalog().getDatabaseFile(tableid);
         this.td = dbf.getTupleDesc();
         //also td.getSize()
-        this.tcard = dbf.numPages();
+        this.tcard = td.getSize();
     }
 
     /**
