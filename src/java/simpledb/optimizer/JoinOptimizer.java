@@ -205,7 +205,7 @@ public class JoinOptimizer {
     private LogicalJoinNode getDifference(Set<LogicalJoinNode> subset, Set<LogicalJoinNode> s) {
         //set difference to see which LogicalJoinNode is left out
         //basically subset - s
-        List<LogicalJoinNode> subList = new List<LogicalJoinNode>(subset);
+        List<LogicalJoinNode> subList = new ArrayList<LogicalJoinNode>(subset);
         for (int i = 0; i < subList.size(); i++) {
             if (!s.contains(subList.get(i))) {
                 return subList.get(i);
@@ -249,11 +249,11 @@ public class JoinOptimizer {
         PlanCache optjoin = new PlanCache();
         for (int i = 1; i <= j.size(); i++) {
             for (Set<LogicalJoinNode> subset : enumerateSubsets(joins, i)) {
-                List<LogicalJoinNode> bestPlan = new List<LogicalJoinNode>();
+                List<LogicalJoinNode> bestPlan = new ArrayList<LogicalJoinNode>();
                 double bestCostSoFar = Double.MAX_VALUE;
                 int bestCardSoFar = Integer.MAX_VALUE;
                 //conversion from set to list?
-                for (Set<LogicalJoinNode> s : enumerateSubsets(new List<LogicalJoinNode>(subset), i-1)) {
+                for (Set<LogicalJoinNode> s : enumerateSubsets(new ArrayList<LogicalJoinNode>(subset), i-1)) {
                     LogicalJoinNode difference = getDifference(subset, s);
                     CostCard subplanEval = computeCostAndCardOfSubplan(stats, filterSelectivities, difference, subset, bestCostSoFar, optjoin);
                     if (subplanEval != null) {
