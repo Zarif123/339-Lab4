@@ -105,7 +105,7 @@ public class JoinOptimizer {
             // HINT: You may need to use the variable "j" if you implemented
             // a join algorithm that's more complicated than a basic
             // nested-loops join.
-            return -1.0;
+            return cost1 + (card1 * cost2) + (card1 * card2);
         }
     }
 
@@ -143,9 +143,32 @@ public class JoinOptimizer {
                                                    String field2PureName, int card1, int card2, boolean t1pkey,
                                                    boolean t2pkey, Map<String, TableStats> stats,
                                                    Map<String, Integer> tableAliasToId) {
-        int card = 1;
+        //int card = 1;
         // TODO: some code goes here
-        return card <= 0 ? 1 : card;
+        //return card <= 0 ? 1 : card;
+        int crossed = card1 * card2;
+        String oper = op.toString();
+        //equality joins
+        if (oper == "=" || oper == "<>") {
+            int joined = crossed / Math.max(card1, card2);
+            //if both aren't primary keys
+            if (!(t1pkey && t2pkey)) {
+                //none can run at the same time
+                //can't be larger than cardinality of non primary key field
+                joined = (((!t1pkey) && t2pkey) && (joined > card1)) ? card1 : joined; 
+                joined = ((t1pkey && (!t2pkey)) && (joined > card2)) ? card2 : joined;
+                //making up a heuristic, just saying larger of two tables
+                joined = ((!t1pkey) && (!t2pkey)) ? Math.max(card1, card2) : joined;
+            }
+            return (oper == "=") ? joined : (crossed - joined);
+        }
+        //range: size of outputs should be proportional to input size
+        if (oper == "<" || oper == "<=" || oper == ">" || oper == ">=") {
+            //assuming fixed fraction of range scans (saying 30% emitted like in handout)
+            return crossed * 0.7;
+        }
+        //shouldn't get to here
+        return -1;
     }
 
     /**
