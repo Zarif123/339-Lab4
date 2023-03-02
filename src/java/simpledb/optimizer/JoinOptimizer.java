@@ -147,7 +147,7 @@ public class JoinOptimizer {
         // TODO: some code goes here
         //return card <= 0 ? 1 : card;
         int crossed = card1 * card2;
-        String oper = op.toString();
+        String oper = joinOp.toString();
         //equality joins
         if (oper == "=" || oper == "<>") {
             int joined = crossed / Math.max(card1, card2);
@@ -165,7 +165,7 @@ public class JoinOptimizer {
         //range: size of outputs should be proportional to input size
         if (oper == "<" || oper == "<=" || oper == ">" || oper == ">=") {
             //assuming fixed fraction of range scans (saying 30% emitted like in handout)
-            return crossed * 0.7;
+            return (int) (crossed * 0.7);
         }
         //shouldn't get to here
         return -1;

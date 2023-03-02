@@ -16,6 +16,7 @@ public class IntHistogram {
     private int ntups;
     //range per bucket
     private double rangeperbucket;
+    private double roundRange;
     
     /**
      * Create a new IntHistogram.
@@ -41,6 +42,7 @@ public class IntHistogram {
         this.graph = new int[buckets];
         this.ntups = 0;
         this.rangeperbucket = (double) (max + 1 - min) / buckets;
+        this.roundRange = Math.ceil(this.rangeperbucket);
     }
     
     //helper I made
@@ -49,7 +51,10 @@ public class IntHistogram {
         // min + rangeperbucket * bucketNo = v
         // bucketNo = (v - min) / rangeperbucket
         // but rounded down
-        return (int) ((v - min) / rangeperbucket);
+        if (v == this.max) {
+            return this.buckets - 1;
+        }
+        return (int) ((v - this.min) / this.roundRange);
     }
 
     /**
@@ -89,7 +94,12 @@ public class IntHistogram {
         }
         //anything involving equality
         if (oper == "=" || oper == "<>" || oper == "<=" || oper == ">=") {
-            select += (graph[bucketNo] / this.rangeperbucket) / this.ntups;
+            if (v < this.min || v > this.max) {
+                select = 0;
+            }
+            else {
+                select += (graph[bucketNo] / this.roundRange) / this.ntups;
+            }
             if (oper == "=") {
                 return select;
             }
@@ -102,22 +112,38 @@ public class IntHistogram {
         if (oper == "<" || oper == "<=") {
             //all less than operations
             //get value for singular bucket
-            double left = min + rangeperbucket * bucketNo;
-            double part = (v - left) / rangeperbucket;
-            select += part * bucketf;
-            //get the rest 
-            for (int i = bucketNo - 1; i > -1; i--) {
-                select += (double) graph[i] / ntups;
+            if (v <= this.min) {
+                select = 0;
+            }
+            else if (v >= this.max) {
+                select = 1;
+            }
+            else {
+                double left = min + this.roundRange * bucketNo;
+                double part = (v - left) / this.roundRange;
+                select += part * bucketf;
+                //get the rest
+                for (int i = bucketNo - 1; i > -1; i--) {
+                    select += (double) graph[i] / ntups;
+                }
             }
         } else {
             //all greater than operations
             //get value for singular bucket
-            double right = min + rangeperbucket * (bucketNo + 1);
-            double part = (right - v) / rangeperbucket;
-            select += part * bucketf;
-            //get the rest
-            for (int i = bucketNo + 1; i < buckets; i++) {
-                select += (double) graph[i] / ntups;
+            if (v <= this.min) {
+                select = 1;
+            }
+            else if (v >= this.max) {
+                select = 0;
+            }
+            else {
+                double right = min + this.roundRange * (bucketNo + 1);
+                double part = (right - v) / this.roundRange;
+                select += part * bucketf;
+                //get the rest
+                for (int i = bucketNo + 1; i < buckets; i++) {
+                    select += (double) graph[i] / ntups;
+                }
             }
         }
         return select;
@@ -138,7 +164,7 @@ public class IntHistogram {
             avgHeight += graph[i];
         }
         avgHeight /= buckets;
-        return (avgHeight / this.rangeperbucket) / this.ntups;
+        return (avgHeight / this.roundRange) / this.ntups;
     }
 
     /**
@@ -149,7 +175,7 @@ public class IntHistogram {
         String s = "";
         for (int i = 0; i < buckets; i++) {
             s += "Bucket # " + i + ": Height " + graph[i];
-            s += " From " + (min + rangeperbucket * i) + " To " + (min + rangeperbucket * (i + 1)) + "\n";
+            s += " From " + (min + this.roundRange * i) + " To " + (min + this.roundRange * (i + 1)) + "\n";
         }
         return s;
     }

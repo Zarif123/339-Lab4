@@ -1,12 +1,16 @@
 package simpledb.optimizer;
 
 import simpledb.common.Database;
+import simpledb.common.DbException;
 import simpledb.common.Type;
 import simpledb.execution.Predicate;
 import simpledb.execution.SeqScan;
 import simpledb.storage.*;
 import simpledb.transaction.Transaction;
+import simpledb.transaction.TransactionAbortedException;
+import simpledb.transaction.TransactionId;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -96,14 +100,21 @@ public class TableStats {
         // TODO: some code goes here
         this.tableid = tableid;
         this.ioCostPerPage = ioCostPerPage;
-        DbFile dbf = Database.getCatalog().getDatabaseFile(tableid);
+        HeapFile dbf = (HeapFile) Database.getCatalog().getDatabaseFile(tableid);
         this.td = dbf.getTupleDesc();
         //tcard should be the number of pages in the table 
         this.tcard = dbf.numPages();
         //need to scan table
-        HeapFileIterator tableIt = dbf.iterator();
+        Transaction tableTransaction = new Transaction();
+        DbFileIterator tableIt = dbf.iterator(tableTransaction.getId());
         //scan 1: find the max and min of each field for int histograms
-        tableIt.open();
+        try {
+            tableIt.open();
+        } catch (DbException e) {
+            throw new RuntimeException(e);
+        } catch (TransactionAbortedException e) {
+            throw new RuntimeException(e);
+        }
         //log indices that have array vs string inds
         this.intInds = new ArrayList<Integer>();
         this.strInds = new ArrayList<Integer>();
@@ -118,12 +129,26 @@ public class TableStats {
         ArrayList<IntField[]> hiLo = new ArrayList<IntField[]>();
         boolean starting = true;
         this.numtups = 0;
-        while (tableIt.hasNext()) {
-            Tuple temp = tableIt.next();
+        while (true) {
+            try {
+                if (!tableIt.hasNext()) break;
+            } catch (DbException e) {
+                throw new RuntimeException(e);
+            } catch (TransactionAbortedException e) {
+                throw new RuntimeException(e);
+            }
+            Tuple temp = null;
+            try {
+                temp = tableIt.next();
+            } catch (DbException e) {
+                throw new RuntimeException(e);
+            } catch (TransactionAbortedException e) {
+                throw new RuntimeException(e);
+            }
             //looping over intInds
             for (int i = 0; i < intInds.size(); i++) {
                 int tupInd = intInds.get(i);
-                IntField fval = temp.getField(tupInd);
+                IntField fval = (IntField) temp.getField(tupInd);
                 //case for start: intiialize everything and set
                 if (starting) {
                     IntField[] startHiLo = {fval, fval};
@@ -134,11 +159,11 @@ public class TableStats {
                     IntField upper = hiLo.get(i)[1];
                     //check for min
                     if (fval.compare(Predicate.Op.LESS_THAN, lower)) {
-                        hiLo.set(i, {fval, upper});
+                        hiLo.set(i, new IntField[]{fval, upper});
                     }
                     //check for max
                     if (fval.compare(Predicate.Op.GREATER_THAN, upper)) {
-                        hiLo.set(i, {lower, fval});
+                        hiLo.set(i, new IntField[]{lower, fval});
                     }
                 }
             }
@@ -159,20 +184,42 @@ public class TableStats {
             }
         }
         //scan 2, read all values into their histograms
-        tableIt.rewind();
-        while (tableIt.hasNext()) {
-            Tuple temp = tableIt.next();
+        try {
+            tableIt.rewind();
+        } catch (DbException e) {
+            throw new RuntimeException(e);
+        } catch (TransactionAbortedException e) {
+            throw new RuntimeException(e);
+        }
+        while (true) {
+            try {
+                if (!tableIt.hasNext()) break;
+            } catch (DbException e) {
+                throw new RuntimeException(e);
+            } catch (TransactionAbortedException e) {
+                throw new RuntimeException(e);
+            }
+            Tuple temp = null;
+            try {
+                temp = tableIt.next();
+            } catch (DbException e) {
+                throw new RuntimeException(e);
+            } catch (TransactionAbortedException e) {
+                throw new RuntimeException(e);
+            }
             intI = 0;
             int strI = 0;
             for (int i = 0; i < this.td.numFields(); i++) {
                 if (this.td.getFieldType(i) == Type.INT_TYPE) {
                     IntHistogram tempHist = intHists.get(intI);
-                    tempHist.addValue(temp.getField(i).getValue());
+                    IntField tempIntField = (IntField) temp.getField(i);
+                    tempHist.addValue(tempIntField.getValue());
                     intHists.set(intI, tempHist);
                     intI++;
                 } else {
                     StringHistogram tempHist = strHists.get(strI);
-                    tempHist.addValue(temp.getField(i).getValue());
+                    StringField tempStringField = (StringField) temp.getField(i);
+                    tempHist.addValue(tempStringField.getValue());
                     strHists.set(strI, tempHist);
                     strI++;
                 }
@@ -208,7 +255,7 @@ public class TableStats {
      */
     public int estimateTableCardinality(double selectivityFactor) {
         // TODO: some code goes here
-        return (int) selectivityFactor * totalTuples();
+        return (int) (selectivityFactor * totalTuples());
     }
 
     /**
@@ -254,13 +301,15 @@ public class TableStats {
         //look in intHist
         for (int i = 0; i < intInds.size(); i++) {
             if (intInds.get(i) == field && constant.getType() == Type.INT_TYPE) {
-                return intHists.get(i).estimateSelectivity(op, constant.getValue());
+                IntField constantInt = (IntField) constant;
+                return intHists.get(i).estimateSelectivity(op, constantInt.getValue());
             }
         }
         //look in strHist
         for (int i = 0; i < strInds.size(); i++) {
             if (strInds.get(i) == field && constant.getType() == Type.STRING_TYPE) {
-                return strHists.get(i).estimateSelectivity(op, constant.getValue());
+                StringField constantString = (StringField) constant;
+                return strHists.get(i).estimateSelectivity(op, constantString.getValue());
             }
         }
         //should never get to here
