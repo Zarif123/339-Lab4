@@ -200,6 +200,20 @@ public class JoinOptimizer {
         return els;
 
     }
+    
+    //helper function for orderJoins
+    private LogicalJoinNode getDifference(Set<LogicalJoinNode> subset, Set<LogicalJoinNode> s) {
+        //set difference to see which LogicalJoinNode is left out
+        //basically subset - s
+        List<LogicalJoinNode> subList = new List<LogicalJoinNode>(subset);
+        for (int i = 0; i < subList.size(); i++) {
+            if (!s.contains(subList.get(i))) {
+                return subList.get(i);
+            }
+        }
+        //should never get to here
+        return null;
+    }
 
     /**
      * Compute a logical, reasonably efficient join on the specified tables. See
@@ -229,8 +243,6 @@ public class JoinOptimizer {
         // TODO: some code goes here
         // Replace the following.
         
-        //confused about: sets and vectors
-
         //needs to be a set of join nodes
         Set<LogicalJoinNode> j = new HashSet<LogicalJoinNode>(joins);
         //optjoin should be a plancache
@@ -238,24 +250,26 @@ public class JoinOptimizer {
         for (int i = 1; i <= j.size(); i++) {
             for (Set<LogicalJoinNode> subset : enumerateSubsets(joins, i)) {
                 List<LogicalJoinNode> bestPlan = new List<LogicalJoinNode>();
+                double bestCostSoFar = Double.MAX_VALUE;
+                int bestCardSoFar = Integer.MAX_VALUE;
                 //conversion from set to list?
                 for (Set<LogicalJoinNode> s : enumerateSubsets(new List<LogicalJoinNode>(subset), i-1)) {
-                    List<LogicalJoinNode> subplan = optjoin.getOrder(s);
-                    //
-                    //best way to join s-s' to subplan
-                    //computeCostAndCardOfSubplan
-                    //params: 
-                    //stats
-                    //filterSelectivities
-                    //joinToRemove?
-                    //subset
-                    //bestcostsofar?
-                    //optjoin
+                    LogicalJoinNode difference = getDifference(subset, s);
+                    CostCard subplanEval = computeCostAndCardOfSubplan(stats, filterSelectivities, difference, subset, bestCostSoFar, optjoin);
+                    if (subplanEval != null) {
+                        bestPlan = subplanEval.plan;
+                        bestCostSoFar = subplanEval.cost;
+                        bestCardSoFar = subplanEval.card;
+                    }
                 }
+                optjoin.addPlan(subset, bestCostSoFar, bestCardSoFar, bestPlan);
             }        
         }
-        
-        return joins;
+        List<LogicalJoinNode> result = optjoin.getOrder(j);
+        if (explain) {
+            printJoins(result, optjoin, stats, filterSelectivities);
+        }
+        return result;
     }
 
     // ===================== Private Methods =================================
