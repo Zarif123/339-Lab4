@@ -75,6 +75,7 @@ public class TableStats {
     private ArrayList<Integer> strInds;
     private ArrayList<IntHistogram> intHists;
     private ArrayList<StringHistogram> strHists;
+    private int numtups;
 
     /**
      * Create a new TableStats object, that keeps track of statistics on each
@@ -116,6 +117,7 @@ public class TableStats {
         //keep track of [min, max] for all int fields
         ArrayList<IntField[]> hiLo = new ArrayList<IntField[]>();
         boolean starting = true;
+        this.numtups = 0;
         while (tableIt.hasNext()) {
             Tuple temp = tableIt.next();
             //looping over intInds
@@ -141,6 +143,7 @@ public class TableStats {
                 }
             }
             starting = false;
+            this.numtups++;
         }
         //make histograms with these values 
         this.intHists = new ArrayList<IntHistogram>();
@@ -270,8 +273,9 @@ public class TableStats {
     public int totalTuples() {
         // TODO: some code goes here
         //not sure how else to do it
-        int bitsPerTupleIncludingHeader = td.getSize() * 8 + 1;
-        return (tcard * BufferPool.getPageSize() * 8) / bitsPerTupleIncludingHeader;
+        /*int bitsPerTupleIncludingHeader = td.getSize() * 8 + 1;
+        return (tcard * BufferPool.getPageSize() * 8) / bitsPerTupleIncludingHeader;*/
+        return this.numtups;
     }
 
 }
