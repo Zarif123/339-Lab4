@@ -228,6 +228,33 @@ public class JoinOptimizer {
 
         // TODO: some code goes here
         // Replace the following.
+        
+        //confused about: sets and vectors
+
+        //needs to be a set of join nodes
+        Set<LogicalJoinNode> j = new HashSet<LogicalJoinNode>(joins);
+        //optjoin should be a plancache
+        PlanCache optjoin = new PlanCache();
+        for (int i = 1; i <= j.size(); i++) {
+            for (Set<LogicalJoinNode> subset : enumerateSubsets(joins, i)) {
+                List<LogicalJoinNode> bestPlan = new List<LogicalJoinNode>();
+                //conversion from set to list?
+                for (Set<LogicalJoinNode> s : enumerateSubsets(new List<LogicalJoinNode>(subset), i-1)) {
+                    List<LogicalJoinNode> subplan = optjoin.getOrder(s);
+                    //
+                    //best way to join s-s' to subplan
+                    //computeCostAndCardOfSubplan
+                    //params: 
+                    //stats
+                    //filterSelectivities
+                    //joinToRemove?
+                    //subset
+                    //bestcostsofar?
+                    //optjoin
+                }
+            }        
+        }
+        
         return joins;
     }
 
